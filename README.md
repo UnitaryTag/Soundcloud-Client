@@ -97,13 +97,12 @@ its uploaders.
 
 ## Current state
 
-**Working:** sign-in (OAuth 2.1 + PKCE with a loopback callback), search, load
-by URL, encrypted token storage, and the media transport — hls.js fetching
-through the main process with credentials attached.
+**Working end to end:** sign in, search or paste a link, and play a track.
+OAuth 2.1 + PKCE with a loopback callback and a cancellable sign-in, encrypted
+token storage, and audio streamed through the main process with credentials
+attached — hls.js never holds a token, and nothing is written to disk.
 
-**Not yet wired:** choosing a track doesn't start playback. The pieces for
-resolving a track to a stream URL and driving the player exist, but the
-connection between them doesn't.
+**Not built:** feed, playlists, likes, a queue, and packaging.
 
 **Still unproven:** whether SoundCloud's live API behaves as documented. Every
 part of this was built against the published API and tested against synthetic

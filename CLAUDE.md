@@ -175,12 +175,20 @@ user-supplied path is the mitigation.
 - **Auth** — PKCE (verified against the RFC 7636 vector), loopback callback
   server, single-flight refresh, OAuth exchange, URN-based API client
 - **Media** — authenticated fetch with host allowlist, `IpcLoader` for hls.js,
-  playback verified end to end against a local fixture
+  stream resolution with expiry parsing, playback verified end to end against a
+  local fixture
+- **Player** — hls.js driven through IPC with re-resolve-once on an expired
+  signature, `mediaSession` for OS media keys, §08 attribution beside the
+  controls
+- **Cancellable sign-in** — closing the loopback listener settles the pending
+  flow, which also releases the callback port so a retry can start
 - Renderer: login and browse views, wired through IPC
 
-**Not built:** track → stream resolution (`streams.ts` and the `media:resolve`
-channel), the player UI, and `mediaSession`. The pieces exist; the wiring
-between "a track was chosen" and "hls.js loads a stream URL" does not.
+**The wiring is complete.** A track can be searched for or pasted as a URL,
+resolved to a stream, and played.
+
+**Not built:** anything beyond the slice — feed, playlists, likes, a queue,
+packaging.
 
 **Still unverified — needs an Artist Pro app (~$99/yr), not yet obtained:**
 whether SoundCloud's live API matches the documented shapes, and whether its
