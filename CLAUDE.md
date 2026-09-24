@@ -124,19 +124,36 @@ Implemented: project skeleton, IPC bridge with sender validation and `Result`
 errors, credential resolution + reporting, non-persistent session setup, shell
 allowlist, logging with redaction.
 
-**Not implemented — blocked on credentials.** The streaming path is unproven,
-and the plan is deliberately playback-first: prove audio works before building
-UI on top of it. The remaining work is:
+**Not implemented — pending credentials.** Registering an API app requires
+Artist Pro (~$99/yr), which is not yet obtained. Until it is, live integration
+and playback are unverifiable.
+
+The remaining work, in order:
 
 1. **Spike** — `curl` `/tracks/{urn}/streams` with a token and read the m3u8
-   body. The open question is whether playlist/segment URIs need auth or are
-   self-sufficient signed CDN URLs. **This decides the entire audio
-   architecture.** See the plan at `~/.claude/plans/woolly-cuddling-river.md`
-   for the full fallback ladder.
+   body. Do playlist/segment URIs need auth on every request, or are they
+   self-sufficient signed CDN URLs? See the plan at
+   `~/.claude/plans/woolly-cuddling-river.md` for the fallback ladder.
 2. **Spike** — what `net.fetch` does with `Authorization` across a cross-origin
    302 (undocumented), and whether `Range`/206 survives.
-3. **Spike** — audible playback past the third segment boundary.
+3. **Spike** — audible playback past the third segment boundary. Segment 1 can
+   pass while relative-URI resolution is broken, so the bar is three.
 4. Then: auth module (PKCE + loopback on `127.0.0.1:8765` + `safeStorage`),
    token lifecycle, player, UI.
 
-Nothing downstream should be built until step 3 passes.
+**On sequencing — read this before deciding nothing can be built.** Spike 1
+determines whether a *simpler* media design is available, not whether work can
+start. The recommended architecture (hls.js custom loader → IPC → authenticated
+fetch in main) works under either answer, because it routes every request
+through the authenticated main process regardless. So building it ahead of the
+spike is a defensible choice.
+
+What genuinely cannot be verified without credentials: whether SoundCloud's live
+API behaves as documented, and whether audio plays at all. The cost of building
+ahead of that is bugs accumulating invisibly — debugging untested code later is
+slower than testing as you go. Not a reason to stop; a reason to know what you
+are deferring.
+
+A useful middle path: the auth logic is largely testable without credentials.
+PKCE against the RFC 7636 test vectors, the loopback server lifecycle, and
+single-flight refresh against a mock token endpoint are all verifiable locally.
