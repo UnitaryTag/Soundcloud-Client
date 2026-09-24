@@ -85,7 +85,9 @@ dl {
   display: grid;
   grid-template-columns: 100px 1fr;
   gap: 6px 16px;
-  margin: 0;
+  /* Bottom margin, or a following paragraph sits flush against the list and
+     reads as another row of it. */
+  margin: 0 0 14px;
 }
 
 dt {
@@ -214,4 +216,82 @@ ul.tracks li:last-child {
 .track-artist {
   font-size: 13px;
   color: var(--muted);
+}
+
+/* --- player --- */
+
+.player {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.player-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.player-meta .track-title {
+  font-weight: 500;
+}
+
+.attribution {
+  font-size: 13px;
+}
+
+.time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.scrubber {
+  width: 100%;
+  margin: 12px 0 0;
+  accent-color: var(--accent);
+}
+
+/* A link that must not navigate the app window — it goes through the
+   allowlisted shell handler instead. */
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+button.link:hover {
+  opacity: 0.85;
+}
+
+button.play {
+  padding: 4px 9px;
+  font-size: 12px;
+  line-height: 1;
+  min-width: 30px;
+}
+
+ul.tracks li.playing {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  margin-left: -12px;
+}
+
+ul.tracks li.playing .track-title {
+  color: var(--accent);
 }

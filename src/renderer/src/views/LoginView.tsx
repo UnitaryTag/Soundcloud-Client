@@ -20,22 +20,37 @@ export default function LoginView({
     else setError(result.error.message)
   }
 
+  const cancel = async (): Promise<void> => {
+    // The pending begin() resolves on its own once the listener closes, and
+    // clears `busy` — so this deliberately does not touch it here, or the
+    // button would flicker back before the flow has actually unwound.
+    await window.sc.auth.cancel()
+  }
+
   return (
     <main className="shell">
       <h1>SoundCloud Client</h1>
       <p className="subtitle">Sign in to continue.</p>
 
       <section className="panel">
-        <button type="button" onClick={() => void signIn()} disabled={busy}>
-          {busy ? 'Waiting for your browser…' : 'Sign in with SoundCloud'}
-        </button>
-
-        {busy && (
-          <p className="hint">
-            Your browser has opened. Authorize the app there and this window will update on its
-            own.
-          </p>
+        {busy ? (
+          <>
+            <div className="row">
+              <button type="button" className="ghost" onClick={() => void cancel()}>
+                Cancel
+              </button>
+            </div>
+            <p className="hint">
+              Your browser has opened. Authorize the app there and this window will update on its
+              own.
+            </p>
+          </>
+        ) : (
+          <button type="button" onClick={() => void signIn()}>
+            Sign in with SoundCloud
+          </button>
         )}
+
         {error !== null && <p className="error">{error}</p>}
       </section>
 

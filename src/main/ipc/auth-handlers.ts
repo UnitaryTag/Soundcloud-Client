@@ -12,5 +12,7 @@ export const registerAuthHandlers = (auth: AuthService): void => {
   // state, bad credentials — arrives with a specific code the UI can act on.
   handle<AuthStatus>(IPC.AuthBegin, async () => auth.begin())
 
+  handle<null>(IPC.AuthCancel, async () => auth.cancel())
+
   handle<AuthStatus>(IPC.AuthSignOut, async () => ok(await auth.signOut()))
 }

@@ -303,6 +303,76 @@ describe('begin — resource cleanup', () => {
   })
 })
 
+describe('cancel', () => {
+  /**
+   * `begin()` binds the listener asynchronously, so there is a window where a
+   * sign-in is running but not yet cancellable. Polling cancel until it takes
+   * is deterministic where a fixed sleep would be a guess.
+   */
+  const cancelOncePending = async (service: AuthService): Promise<void> => {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      if ((await service.cancel()).ok) return
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+    throw new Error('sign-in never became cancellable')
+  }
+
+  it('settles a pending sign-in instead of leaving it hanging', async () => {
+    const { service } = await buildService({ behavior: 'ignore' })
+    const pending = service.begin()
+
+    await cancelOncePending(service)
+
+    const result = await pending
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe(AppErrorCode.AuthDenied)
+  })
+
+  it('stores nothing when the sign-in was cancelled', async () => {
+    const { service, store } = await buildService({ behavior: 'ignore' })
+    const pending = service.begin()
+    await cancelOncePending(service)
+    await pending
+
+    expect(store.peek()).toBeNull()
+  })
+
+  it('releases the port so a retry can start immediately', async () => {
+    // The bug this exists for: without cancel, an abandoned sign-in holds the
+    // callback port until the five-minute timeout, so the next attempt fails
+    // with EADDRINUSE.
+    const port = await freePort()
+    const abandoned = await buildService({ behavior: 'ignore', port })
+    const pending = abandoned.service.begin()
+    await cancelOncePending(abandoned.service)
+    await pending
+
+    const retry = await buildService({ behavior: 'approve', port })
+    const result = await retry.service.begin()
+
+    expect(result.ok).toBe(true)
+  })
+
+  it('reports InvalidRequest when nothing is in progress', async () => {
+    const { service } = await buildService()
+    const result = await service.cancel()
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe(AppErrorCode.InvalidRequest)
+  })
+
+  it('does not disturb a completed sign-in', async () => {
+    const { service, store } = await buildService({ behavior: 'approve' })
+    await service.begin()
+
+    // Nothing is pending now, so this must not clear the session.
+    await service.cancel()
+
+    expect(store.peek()).not.toBeNull()
+    expect(service.status().state).toBe('signed-in')
+  })
+})
+
 describe('restore', () => {
   const storedSession = (clientId = CREDENTIALS.clientId): StoredTokens => ({
     refreshToken: 'rt-1',

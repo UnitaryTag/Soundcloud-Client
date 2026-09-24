@@ -30,6 +30,7 @@ const api: ScApi = {
   auth: {
     status: () => ipcRenderer.invoke(IPC.AuthStatus),
     begin: () => ipcRenderer.invoke(IPC.AuthBegin),
+    cancel: () => ipcRenderer.invoke(IPC.AuthCancel),
     signOut: () => ipcRenderer.invoke(IPC.AuthSignOut),
 
     onChanged: (cb) => {
@@ -50,6 +51,7 @@ const api: ScApi = {
   },
 
   media: {
+    resolve: (trackUrn) => ipcRenderer.invoke(IPC.MediaResolve, trackUrn),
     fetch: (url, range) => ipcRenderer.invoke(IPC.MediaFetch, url, range)
   }
 }

@@ -1,7 +1,7 @@
 import { AppErrorCode, err, ok, type Result } from '@shared/result'
 import type { AuthStatus, UserSummary } from '@shared/sc'
 import { log } from '../logger'
-import { startLoopback } from './loopback'
+import { startLoopback, type LoopbackSession } from './loopback'
 import {
   buildAuthorizeUrl,
   exchangeAuthorizationCode,
@@ -48,6 +48,8 @@ export type AuthServiceDeps = {
 export class AuthService {
   private user: UserSummary | null = null
   private starting = false
+  /** The in-flight loopback listener, if a sign-in is waiting on a callback. */
+  private pending: LoopbackSession | null = null
 
   constructor(private readonly deps: AuthServiceDeps) {}
 
@@ -119,6 +121,10 @@ export class AuthService {
         port: this.deps.redirectPort(),
         timeoutMs: this.deps.relayTimeoutMs
       })
+      // Exposed so cancel() can settle it. Without this the UI has no way out
+      // of a sign-in the user abandoned in the browser, and the callback port
+      // stays bound until the timeout — blocking any retry.
+      this.pending = session
 
       const authorizeUrl = buildAuthorizeUrl({
         credentials,
@@ -180,10 +186,27 @@ export class AuthService {
       return ok(this.publish())
     } finally {
       this.starting = false
+      this.pending = null
       // Releases the port on every path, including the error ones. A leaked
       // listener here would block every later sign-in attempt.
       await session?.close()
     }
+  }
+
+  /**
+   * Abandon an in-progress sign-in.
+   *
+   * Closing the loopback listener settles its outcome as `cancelled`, which
+   * `begin()` maps to a normal failure — so the awaiting call resolves rather
+   * than hanging. Idempotent, and a no-op when nothing is pending.
+   */
+  async cancel(): Promise<Result<null>> {
+    const pending = this.pending
+    if (pending === null) {
+      return err(AppErrorCode.InvalidRequest, 'No sign-in is in progress.')
+    }
+    await pending.close()
+    return ok(null)
   }
 
   async signOut(): Promise<AuthStatus> {

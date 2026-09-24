@@ -74,7 +74,7 @@ void app.whenReady().then(() => {
   registerCredentialHandlers()
   registerAuthHandlers(services.auth)
   registerCatalogHandlers(services.api)
-  registerMediaHandlers(services.media)
+  registerMediaHandlers(services.media, services.api)
 
   createWindow()
 

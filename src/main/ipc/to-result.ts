@@ -23,6 +23,15 @@ export const toResult = async <T>(fn: () => Promise<T>): Promise<Result<T>> => {
       // while AppError models it as an absent field.
       return err<T>(cause.code, cause.message, cause.rateLimit?.resetAt ?? undefined)
     }
+    // Anything carrying its own AppErrorCode maps straight through — this keeps
+    // error provenance in one place instead of every call site restating it.
+    if (
+      cause instanceof Error &&
+      'code' in cause &&
+      typeof (cause as { code: unknown }).code === 'string'
+    ) {
+      return err<T>((cause as { code: AppErrorCode }).code, cause.message)
+    }
     // The session is gone, whatever the surface reason — the UI should offer a
     // sign-in rather than a retry.
     if (cause instanceof NotSignedIn || cause instanceof RefreshRejected) {
