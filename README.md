@@ -97,16 +97,33 @@ its uploaders.
 
 ## Current state
 
-**Working:** project skeleton, IPC bridge, credential resolution and reporting,
-non-persistent session setup, external-link allowlist.
+**Working:** sign-in (OAuth 2.1 + PKCE with a loopback callback), search, load
+by URL, encrypted token storage, and the media transport — hls.js fetching
+through the main process with credentials attached.
 
-**Not yet implemented:** login, playback, search, feed, playlists.
+**Not yet wired:** choosing a track doesn't start playback. The pieces for
+resolving a track to a stream URL and driving the player exist, but the
+connection between them doesn't.
 
-The order is deliberate. SoundCloud changed how stream URLs are authorized in
-November 2025 — they now require an auth header and redirect to a signed CDN
-URL, and there are reports of CORS failures fetching them from a browser
-context. That's the riskiest part of the build, so it gets proven before any UI
-is written on top of it.
+**Still unproven:** whether SoundCloud's live API behaves as documented. Every
+part of this was built against the published API and tested against synthetic
+fixtures — the real service has never been called, because that needs API
+credentials, which require an Artist Pro subscription.
+
+That last point is worth weighing before you rely on any of it. The auth flow
+and the media pipeline are both verified — against the spec and against a real
+HLS stream respectively — but "verified against the documentation" and
+"verified against SoundCloud" are different claims, and only the first is true
+today.
+
+Two spikes document what was actually measured rather than assumed, and both
+changed the design:
+
+- [`spikes/net-fetch-redirect.js`](spikes/net-fetch-redirect.js) — Electron's
+  `net.fetch` preserves the `Authorization` header across a cross-origin
+  redirect; Node's `fetch` strips it. The media layer depends on this.
+- [`spikes/hls-playback/`](spikes/hls-playback/) — drives the real loader
+  against a locally generated HLS stream and verifies audio actually plays.
 
 ## Development
 

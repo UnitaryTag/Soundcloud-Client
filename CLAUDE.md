@@ -84,6 +84,54 @@ These are non-obvious and expensive to rediscover.
 - **Credentials require Artist Pro.** Registration is self-serve but gated.
 - `/me/activities` is deprecated — use `/me/feed`.
 
+## Media pipeline
+
+Measured by `spikes/net-fetch-redirect.js` and `spikes/hls-playback/`, not
+reasoned about. Re-run them if any of this is in doubt.
+
+- **`Authorization` survives a cross-origin 302 in Electron's `net.fetch`, but
+  is stripped by Node's global `fetch`.** SoundCloud's stream URLs redirect to a
+  signed CDN host, so media MUST go through `net.fetch`. Using Node's fetch
+  would 401 every segment with no visible cause. (OAuth uses Node's fetch
+  deliberately — no redirects there, and it keeps the token exchange outside
+  Chromium entirely.)
+- **`redirect: 'manual'` does not work with `net.fetch`** — it fails with
+  "Redirect was cancelled". Following redirects by hand is therefore not
+  available, which makes the host allowlist the *only* thing between the user's
+  token and an arbitrary host. It is enforced on every request.
+- **hls.js reads the playlist body from `LoaderResponse.data`, not `.text`.**
+  Setting only `text` throws "cannot read properties of undefined" deep inside
+  `parseMasterPlaylist`. `IpcLoader` sets both.
+- **The renderer CSP needs `worker-src blob:`.** Without it hls.js's transmuxer
+  worker is blocked and it silently falls back to the main thread — playback
+  still works, but competes with the UI.
+- **Media types are case-insensitive.** `application/x-mpegURL` is a real
+  spelling; a case-sensitive check classifies playlists as binary segments.
+- **The `Loader` interface requires `stats` and a *public* `context`.** A
+  private field cannot satisfy a public interface member.
+
+### Why media URLs, not opaque handles
+
+hls.js resolves segment URIs against the playlist's response URL, so children
+must be addressable by URL no matter what. Handles would cover only the first
+request while adding a layer to keep in sync, so the **host allowlist is the
+boundary** instead — https only, suffix-matched so `sndcdn.com.evil.test` fails.
+
+### Proving playback without credentials
+
+`spikes/hls-playback/` bundles the **production** `IpcLoader` with esbuild (not a
+copy) and drives it against an ffmpeg-generated AAC/fMP4 fixture served locally.
+It passes: audio decodes and plays past three segment boundaries, with the auth
+header on every request. That covers the transport. It does **not** cover
+SoundCloud's actual URLs, auth, or playlist shape.
+
+Regenerate the fixture with:
+```bash
+ffmpeg -y -f lavfi -i "sine=frequency=440:duration=20" -c:a aac -b:a 160k \
+  -f hls -hls_time 2 -hls_playlist_type vod -hls_segment_type fmp4 \
+  -hls_fmp4_init_filename init.mp4 /tmp/sc-fixture/stream.m3u8
+```
+
 ## Terms of Use constraints (non-negotiable)
 
 These shape the code, not just the docs.
@@ -120,40 +168,31 @@ user-supplied path is the mitigation.
 
 ## Current state
 
-Implemented: project skeleton, IPC bridge with sender validation and `Result`
-errors, credential resolution + reporting, non-persistent session setup, shell
-allowlist, logging with redaction.
+**Built and tested (158 tests):**
 
-**Not implemented — pending credentials.** Registering an API app requires
-Artist Pro (~$99/yr), which is not yet obtained. Until it is, live integration
-and playback are unverifiable.
+- Project skeleton, IPC bridge with sender validation, `Result` errors
+- Credential resolution and reporting, `safeStorage`-encrypted token store
+- **Auth** — PKCE (verified against the RFC 7636 vector), loopback callback
+  server, single-flight refresh, OAuth exchange, URN-based API client
+- **Media** — authenticated fetch with host allowlist, `IpcLoader` for hls.js,
+  playback verified end to end against a local fixture
+- Renderer: login and browse views, wired through IPC
 
-The remaining work, in order:
+**Not built:** track → stream resolution (`streams.ts` and the `media:resolve`
+channel), the player UI, and `mediaSession`. The pieces exist; the wiring
+between "a track was chosen" and "hls.js loads a stream URL" does not.
 
-1. **Spike** — `curl` `/tracks/{urn}/streams` with a token and read the m3u8
-   body. Do playlist/segment URIs need auth on every request, or are they
-   self-sufficient signed CDN URLs? See the plan at
-   `~/.claude/plans/woolly-cuddling-river.md` for the fallback ladder.
-2. **Spike** — what `net.fetch` does with `Authorization` across a cross-origin
-   302 (undocumented), and whether `Range`/206 survives.
-3. **Spike** — audible playback past the third segment boundary. Segment 1 can
-   pass while relative-URI resolution is broken, so the bar is three.
-4. Then: auth module (PKCE + loopback on `127.0.0.1:8765` + `safeStorage`),
-   token lifecycle, player, UI.
+**Still unverified — needs an Artist Pro app (~$99/yr), not yet obtained:**
+whether SoundCloud's live API matches the documented shapes, and whether its
+real stream URLs behave like the local fixture. Everything above was built
+against documentation and a synthetic stream.
 
-**On sequencing — read this before deciding nothing can be built.** Spike 1
-determines whether a *simpler* media design is available, not whether work can
-start. The recommended architecture (hls.js custom loader → IPC → authenticated
-fetch in main) works under either answer, because it routes every request
-through the authenticated main process regardless. So building it ahead of the
-spike is a defensible choice.
+**On sequencing.** Spike 1's answer — whether segments need per-request auth —
+turned out not to matter for the architecture: routing every request through
+the authenticated main process works either way, and only decides whether a
+*simpler* design is available. Building ahead of it was the right call.
 
-What genuinely cannot be verified without credentials: whether SoundCloud's live
-API behaves as documented, and whether audio plays at all. The cost of building
-ahead of that is bugs accumulating invisibly — debugging untested code later is
-slower than testing as you go. Not a reason to stop; a reason to know what you
-are deferring.
-
-A useful middle path: the auth logic is largely testable without credentials.
-PKCE against the RFC 7636 test vectors, the loopback server lifecycle, and
-single-flight refresh against a mock token endpoint are all verifiable locally.
+The lesson worth keeping: the two spikes each **changed the design** rather
+than confirming it. The redirect finding ruled out the planned fallback;
+the playback harness found three bugs that no amount of reasoning would have
+surfaced. Spikes are cheap; assuming is not.
