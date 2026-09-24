@@ -11,10 +11,16 @@
 
       `media-src blob:` is required for MSE SourceBuffers, which is how audio
       reaches the speakers without ever being written to disk.
+
+      `worker-src blob:` is required by hls.js, which runs its transmuxer in a
+      worker created from a blob URL. Without it the worker is blocked and
+      hls.js silently falls back to transmuxing on the main thread — playback
+      still works, but it competes with the UI for the thread. Verified by
+      spikes/hls-playback.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.sndcdn.com; media-src 'self' blob:; connect-src 'self' ws://localhost:* http://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.sndcdn.com; media-src 'self' blob:; connect-src 'self' ws://localhost:* http://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>SoundCloud Client</title>
   </head>

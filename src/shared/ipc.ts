@@ -14,8 +14,24 @@ export const IPC = {
   AuthChanged: 'auth:changed',
 
   CatalogSearch: 'catalog:search',
-  CatalogResolve: 'catalog:resolve'
+  CatalogResolve: 'catalog:resolve',
+
+  MediaFetch: 'media:fetch'
 } as const
+
+/**
+ * A playlist or segment fetched on the renderer's behalf.
+ *
+ * `url` is the post-redirect URL, which hls.js requires to resolve relative
+ * child URIs. Exactly one of `text`/`bytes` is present, decided by content type.
+ */
+export type MediaChunk = {
+  status: number
+  url: string
+  contentType: string | null
+  text?: string
+  bytes?: Uint8Array
+}
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
 
@@ -53,5 +69,16 @@ export type ScApi = {
     search: (query: string, cursor?: string) => Promise<Result<Page<TrackSummary>>>
     /** Resolves a soundcloud.com URL to a track. */
     resolve: (url: string) => Promise<Result<TrackSummary>>
+  }
+
+  media: {
+    /**
+     * Fetches media with the user's credentials attached.
+     *
+     * The renderer cannot make these requests itself — they need an
+     * `Authorization: OAuth` header, and the token lives only in main. Main
+     * enforces https and a host allowlist, on redirect targets as well.
+     */
+    fetch: (url: string, range?: string) => Promise<Result<MediaChunk>>
   }
 }

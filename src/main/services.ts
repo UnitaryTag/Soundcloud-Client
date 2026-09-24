@@ -1,5 +1,7 @@
 import type { AuthStatus } from '@shared/sc'
 import { builtinCredentials } from './env'
+import { MediaFetcher } from './media/fetch-media'
+import { mediaSession } from './media/session'
 import { ApiClient, getMe } from './soundcloud/api'
 import { AuthService } from './soundcloud/auth'
 import { DEFAULT_PORT } from './soundcloud/loopback'
@@ -20,6 +22,7 @@ export type Services = {
   tokens: TokenManager
   api: ApiClient
   auth: AuthService
+  media: MediaFetcher
 }
 
 export const createServices = (options: {
@@ -65,5 +68,17 @@ export const createServices = (options: {
     onChanged: options.onAuthChanged
   })
 
-  return { credentials, tokens, api, auth }
+  const media = new MediaFetcher({
+    // The session partition is resolved lazily because `session.fromPartition`
+    // needs the app to be ready, and this graph is constructed before that in
+    // some paths.
+    fetch: (url, init) => mediaSession().fetch(url, init),
+    getAccessToken: async () => {
+      const current = credentials()
+      if (current === null) throw new NotSignedIn('No SoundCloud credentials are configured.')
+      return tokens.getAccessToken(current.clientId)
+    }
+  })
+
+  return { credentials, tokens, api, auth, media }
 }

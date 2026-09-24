@@ -47,6 +47,10 @@ const api: ScApi = {
   catalog: {
     search: (query, cursor) => ipcRenderer.invoke(IPC.CatalogSearch, query, cursor),
     resolve: (url) => ipcRenderer.invoke(IPC.CatalogResolve, url)
+  },
+
+  media: {
+    fetch: (url, range) => ipcRenderer.invoke(IPC.MediaFetch, url, range)
   }
 }
 

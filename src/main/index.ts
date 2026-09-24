@@ -4,6 +4,7 @@ import { IPC } from '@shared/ipc'
 import { registerAuthHandlers } from './ipc/auth-handlers'
 import { registerCatalogHandlers } from './ipc/catalog-handlers'
 import { registerCredentialHandlers } from './credentials'
+import { registerMediaHandlers } from './ipc/media-handlers'
 import { setAllowedSender } from './ipc/register'
 import { registerShellHandlers } from './ipc/shell-handlers'
 import { log } from './logger'
@@ -73,6 +74,7 @@ void app.whenReady().then(() => {
   registerCredentialHandlers()
   registerAuthHandlers(services.auth)
   registerCatalogHandlers(services.api)
+  registerMediaHandlers(services.media)
 
   createWindow()
 
