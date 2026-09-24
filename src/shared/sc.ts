@@ -26,7 +26,11 @@ export const trackUrn = (id: string | number): Urn => {
 }
 
 export type UserSummary = {
-  urn: Urn
+  /**
+   * Null when SoundCloud omits it. Display metadata only — never used as a key,
+   * so a missing value degrades a link rather than breaking playback.
+   */
+  urn: Urn | null
   username: string
   permalinkUrl: string
   avatarUrl: string | null

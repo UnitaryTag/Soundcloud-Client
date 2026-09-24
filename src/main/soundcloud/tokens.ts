@@ -114,6 +114,21 @@ export class TokenManager {
     return this.current !== null
   }
 
+  /**
+   * Mark the current access token unusable so the next call refreshes.
+   *
+   * Used when the API returns 401 despite the token looking unexpired on our
+   * clock — the server is authoritative about its own tokens, and a revoke or a
+   * clock skew would otherwise leave us retrying a token it has already
+   * rejected. Deliberately does not refresh immediately: the next
+   * `getAccessToken` will, and it will be single-flighted with any other caller.
+   */
+  invalidate(): void {
+    if (this.current !== null) {
+      this.current = { ...this.current, expiresAt: 0 }
+    }
+  }
+
   async signOut(): Promise<void> {
     this.current = null
     this.inFlight = null
