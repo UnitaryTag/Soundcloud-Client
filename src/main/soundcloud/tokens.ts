@@ -114,6 +114,11 @@ export class TokenManager {
     return this.current !== null
   }
 
+  /** Read-only view of the current token set, for reporting auth state. */
+  snapshot(): StoredTokens | null {
+    return this.current
+  }
+
   /**
    * Mark the current access token unusable so the next call refreshes.
    *

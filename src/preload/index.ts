@@ -6,13 +6,16 @@ import type { AuthStatus } from '@shared/sc'
 /**
  * The entire renderer-facing surface.
  *
- * `ipcRenderer` itself is never exposed — it cannot cross the contextBridge as
- * of Electron 29, and exposing it would hand the renderer every channel.
- * Individual channels are wrapped instead.
+ * `ipcRenderer` is never exposed — it cannot cross the contextBridge as of
+ * Electron 29, and exposing it would hand the renderer every channel. Individual
+ * channels are wrapped instead.
  *
  * This file is bundled into a single CommonJS file on purpose: a sandboxed
  * preload's `require` is a polyfill limited to `electron`, `events`, `timers`,
- * `url`, so it cannot be split across sibling files.
+ * and `url`, so it cannot be split across sibling files.
+ *
+ * Nothing here carries a token or a secret. The renderer has no credentials and
+ * makes no authenticated requests of its own.
  */
 
 const api: ScApi = {
@@ -25,6 +28,10 @@ const api: ScApi = {
   },
 
   auth: {
+    status: () => ipcRenderer.invoke(IPC.AuthStatus),
+    begin: () => ipcRenderer.invoke(IPC.AuthBegin),
+    signOut: () => ipcRenderer.invoke(IPC.AuthSignOut),
+
     onChanged: (cb) => {
       const listener = (_event: IpcRendererEvent, status: AuthStatus): void => cb(status)
       ipcRenderer.on(IPC.AuthChanged, listener)
@@ -35,6 +42,11 @@ const api: ScApi = {
         ipcRenderer.removeListener(IPC.AuthChanged, listener)
       }
     }
+  },
+
+  catalog: {
+    search: (query, cursor) => ipcRenderer.invoke(IPC.CatalogSearch, query, cursor),
+    resolve: (url) => ipcRenderer.invoke(IPC.CatalogResolve, url)
   }
 }
 

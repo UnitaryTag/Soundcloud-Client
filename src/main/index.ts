@@ -1,16 +1,22 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
-import { APP_PARTITION } from './media/session'
+import { IPC } from '@shared/ipc'
+import { registerAuthHandlers } from './ipc/auth-handlers'
+import { registerCatalogHandlers } from './ipc/catalog-handlers'
+import { registerCredentialHandlers } from './credentials'
 import { setAllowedSender } from './ipc/register'
 import { registerShellHandlers } from './ipc/shell-handlers'
-import { registerCredentialHandlers } from './credentials'
 import { log } from './logger'
+import { APP_PARTITION } from './media/session'
+import { createServices } from './services'
 
 /**
  * Wiring order matters. Handlers are registered once, at ready, before any
- * window exists — a renderer that can invoke a channel before it is handled
- * gets an opaque "no handler registered" rejection.
+ * window exists — a renderer that invokes a channel before it is handled gets
+ * an opaque "no handler registered" rejection.
  */
+
+let mainWindow: BrowserWindow | null = null
 
 const createWindow = (): BrowserWindow => {
   const win = new BrowserWindow({
@@ -47,13 +53,35 @@ const createWindow = (): BrowserWindow => {
   }
 
   setAllowedSender(win.webContents)
+  mainWindow = win
   return win
 }
 
 void app.whenReady().then(() => {
+  const services = createServices({
+    // Only URLs constructed by main reach this — the OAuth authorize URL, and
+    // links the renderer routes through the allowlisted shell handler.
+    openExternal: (url) => shell.openExternal(url),
+    onAuthChanged: (status) => {
+      // The renderer also polls status() on mount, so a change that lands
+      // before the window exists is not lost.
+      mainWindow?.webContents.send(IPC.AuthChanged, status)
+    }
+  })
+
   registerShellHandlers()
   registerCredentialHandlers()
+  registerAuthHandlers(services.auth)
+  registerCatalogHandlers(services.api)
+
   createWindow()
+
+  // Fire and forget: startup must not block on a network round trip to /me.
+  // The renderer reads status() immediately and receives a push if the restored
+  // session resolves later.
+  void services.auth.restore().catch((cause) => {
+    log.error('could not restore the previous session:', cause)
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -64,8 +92,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-// TODO(auth): close the loopback callback server here once it exists — a
-// cancelled login must not leak a listening socket.
 app.on('will-quit', () => {
+  // The loopback listener is closed in AuthService.begin()'s finally block on
+  // every path, so there is nothing to release here yet. Kept as the hook for
+  // anything that does need it later.
   log.info('shutting down')
 })

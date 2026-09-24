@@ -17,6 +17,10 @@ export const AppErrorCode = {
   // --- credentials ---
   NoCredentials: 'NO_CREDENTIALS',
 
+  // --- caller error ---
+  /** The request was malformed or rejected by input validation. Not a fault of the API or the session. */
+  InvalidRequest: 'INVALID_REQUEST',
+
   // --- api ---
   RateLimited: 'RATE_LIMITED',
   Unauthorized: 'UNAUTHORIZED',

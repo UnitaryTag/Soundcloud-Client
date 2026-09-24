@@ -1,5 +1,5 @@
 import { AppErrorCode } from '@shared/result'
-import { isUrn, type TrackSummary, type Urn, type UserSummary } from '@shared/sc'
+import { isUrn, type Page, type TrackSummary, type Urn, type UserSummary } from '@shared/sc'
 import { log } from '../logger'
 import type { FetchLike } from './oauth'
 
@@ -86,11 +86,8 @@ const readRateLimit = (payload: unknown): RateLimitInfo | undefined => {
   return undefined
 }
 
-export type Page<T> = {
-  items: T[]
-  /** Cursor for the next page, or null at the end. Opaque — never construct one. */
-  next: string | null
-}
+// `Page` is shared, since it crosses IPC to the renderer.
+export type { Page } from '@shared/sc'
 
 export class ApiClient {
   constructor(private readonly deps: ApiDeps) {}
@@ -276,6 +273,10 @@ const toPage = <Raw, Out>(payload: RawCollection, map: (raw: Raw) => Out): Page<
 
 export const getTrack = async (client: ApiClient, urn: Urn): Promise<TrackSummary> =>
   toTrackSummary(await client.getJson<RawTrack>(`/tracks/${urn}`))
+
+/** The signed-in user. Requires the authorization-code flow — client credentials cannot see /me. */
+export const getMe = async (client: ApiClient): Promise<UserSummary> =>
+  toUserSummary(await client.getJson<RawUser>('/me'))
 
 /**
  * Cursor pagination. `offset` is deprecated and bare collections are deprecated

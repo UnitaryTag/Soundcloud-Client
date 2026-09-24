@@ -31,7 +31,7 @@ const isAllowed = (raw: string): boolean => {
 export const registerShellHandlers = (): void => {
   handle<null>(IPC.ShellOpenExternal, async (_event, url) => {
     if (typeof url !== 'string' || !isAllowed(url)) {
-      return err<null>(AppErrorCode.Unknown, 'Blocked: not an https SoundCloud URL.')
+      return err<null>(AppErrorCode.InvalidRequest, 'Blocked: not an https SoundCloud URL.')
     }
     await shell.openExternal(url)
     return ok(null)

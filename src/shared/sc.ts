@@ -48,7 +48,23 @@ export type TrackSummary = {
 
 export type AuthStatus =
   | { state: 'signed-out' }
-  | { state: 'signed-in'; user: UserSummary; expiresAt: number }
+  | {
+      state: 'signed-in'
+      /**
+       * Null when the session is valid but the profile could not be loaded —
+       * typically offline at launch. Reporting `signed-out` instead would throw
+       * away a working session over a network blip.
+       */
+      user: UserSummary | null
+      /** Epoch ms. */
+      expiresAt: number
+    }
+
+/** A cursor-paginated slice of a collection. `next` is opaque — never construct one. */
+export type Page<T> = {
+  items: T[]
+  next: string | null
+}
 
 export type CredentialSource = 'user' | 'builtin' | 'none'
 
