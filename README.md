@@ -123,14 +123,3 @@ changed the design:
   redirect; Node's `fetch` strips it. The media layer depends on this.
 - [`spikes/hls-playback/`](spikes/hls-playback/) — drives the real loader
   against a locally generated HLS stream and verifies audio actually plays.
-
-## Development
-
-See [CLAUDE.md](CLAUDE.md) for architecture, the API constraints that shape the
-code, and environment gotchas.
-
-```bash
-npm run dev        # run with HMR
-npm run typecheck  # both tsconfigs
-npm run build      # typecheck + build
-```
